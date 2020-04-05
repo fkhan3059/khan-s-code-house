@@ -1,0 +1,327 @@
+import pandas as pd
+filename = "https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DA0101EN/auto.csv"
+headers = ["symboling","normalized-losses","make","fuel-type","aspiration", "num-of-doors","body-style",
+         "drive-wheels","engine-location","wheel-base", "length","width","height","curb-weight","engine-type",
+         "num-of-cylinders", "engine-size","fuel-system","bore","stroke","compression-ratio","horsepower",
+         "peak-rpm","city-mpg","highway-mpg","price"]
+df= pd.read_csv(filename, names= headers)
+print(df.head())
+
+DATA WRANGLING
+
+#there are values "?" which are not either null nor nan. we have to convert them first to nan value
+import numpy as np
+df.replace('?', np.nan, inplace= True)
+
+missing_data= df.isnull()
+for a in missing_data.columns.values.tolist():
+    print(missing_data[a].value_counts())
+
+#each of the column missing value is addressed differently in this context
+"""Replace by mean:
+
+avg_normalised_loss= df['normalized-losses'].astype('float').mean(axis=0)
+df['normalized-losses'].replace(np.nan, avg_normalised_loss, inplace=True)
+avg_bore= df['bore'].astype('float').mean(axis=0)
+df['bore'].replace(np.nan, avg_bore, inplace= True)
+avg_horsepwr= df['horsepower'].astype('float').mean(axis=0)
+df['horsepower'].replace(np.nan, avg_horsepwr, inplace=True)
+avg_rpm= df['peak-rpm'].astype('float').mean(axis=0)
+df['peak-rpm'].replace(np.nan, avg_rpm, inplace= True)
+
+
+Replace by frequency:
+print(df['num-of-doors'].value_counts())
+#from the console we can see num of cars with 4 doors are 114 and num of cars with 2 doors are 89. so we can replace missing values with values of cars with 4 doors
+df['num-of-doors'].replace(np.nan, 'four', inplace=True)
+
+Dropping the whole row:
+df.dropna(subset=['price'],axis=0, inplace=True)
+
+print(df.isnull().sum()) #all missing values are gone
+print(df.head())
+
+#DATA FORMATTING
+
+print(df.dtypes)
+df[['bore', 'stroke']]= df[['bore', 'stroke']].astype('float')
+df['normalized-losses']= df['normalized-losses'].astype('float')
+df['price']= df['price'].astype('float')
+df['peak-rpm']=df['peak-rpm'].astype('float')
+
+#DATA STANDARDIZATION
+"""Example
+
+df['city-l/100km']= 235/df['city-mpg']
+#similarly
+df["highway-mpg"] = 235/df["highway-mpg"]
+df.rename(columns={'"highway-mpg"':'highway-L/100km'}, inplace=True)
+
+"""DATA NORMALIZATION
+
+Target:would like to Normalize those variables so their value ranges from 0 to 1.
+
+df['length']= df['length']/df['length'].max()
+df['width']= df['width']/df['width'].max()
+df['height']=df['height']/df['height'].max()
+
+
+#BINNING
+
+#horsepower needs to be integer first
+df['horsepower']= df['horsepower'].astype('int', copy=True)
+
+bins= np.linspace(min(df['horsepower']), max(df['horsepower']), 4)
+print(bins)
+
+bin_catg_names= ['Low','Medium','High']
+
+df['binned_horsepower']= pd.cut(df['horsepower'], bins, labels= bin_catg_names, include_lowest=True)
+print(df[['horsepower', 'binned_horsepower']].head())
+print(df['binned_horsepower'].value_counts())
+
+#Plotting
+
+import matplotlib.pyplot as plt
+#plt.ylabel('number of cars')
+#plt.xlabel('horsepower')
+#plt.bar(bin_catg_names, df['binned_horsepower'].value_counts())
+#plt.show()
+
+plt.hist(df['horsepower'], bins= 3)
+plt.show()
+
+#creating dummy variable"""
+
+dummy_variable= pd.get_dummies(df['fuel-type'])
+print(dummy_variable.head())
+
+dummy_variable.rename(columns= {'diesel': 'gas', 'gas':'diesel'})
+
+#lets add this new fuel column to our dataframe
+df= pd.concat([df, dummy_variable], axis= 1)
+
+#Same for aspiration column
+dummy_variable2= pd.get_dummies(df['aspiration'])
+df= pd.concat([df, dummy_variable2], axis= 1)
+#------------------------------------------------------------------------------------
+
+"""Exploratory data analysis"""
+
+path='https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DA0101EN/automobileEDA.csv'
+new_df= pd.read_csv(path)
+
+import seaborn as sns
+#sns.regplot(x='engine-size', y='price', data= new_df)
+new_df[['engine-size', 'price']].corr()
+
+#similarly
+#sns.regplot(x= 'highway-mpg', y= 'price', data= new_df) 
+# we can see as the price and highway mpg has a negative corr.
+
+#similarly lets check if peak-rpm has any affect on price
+#sns.regplot(x= new_df['peak-rpm'], y=new_df['price']) 
+#we can see the line is almost horizontal, meaning peak rpm has minimal effect on price, also data variables are scattered. Therefore peak-rpm is not a right indicator
+
+"""relationship between categorical variables (1 numeric and another categorical)
+
+sns.boxplot(x='body-style', y='price', data= new_df)
+plt.show()
+plt.clf()
+sns.boxplot(x='engine-location', y='price', data= new_df) 
+#here we can see the price segments according to engine location, therefore it can be a good indicator of price
+plt.show()
+plt.clf()
+#again
+sns.boxplot(x='drive-wheels', y='price', data= new_df) 
+#here we see there are price differences for different drive wheels. therefore it can also potentially be an indicator of price
+plt.show()
+
+"""Descriptive Statistical analysis
+
+print(new_df.describe())
+print(new_df.describe(include=['object']))
+
+drive_wheel_count= new_df['drive-wheels'].value_counts().to_frame()
+drive_wheel_count.rename(columns= {'drive-wheel': 'value count'}, inplace=True)
+drive_wheel_count.index.name= 'drive wheel'
+
+"Similarly engine location"
+engine_location_count= new_df['engine-location'].value_counts().to_frame()
+engine_location_count.rename(columns= {'engine-location': 'value count'}, inplace=True)
+engine_location_count.index.name= 'engine-location'
+
+"Grouping"
+new_df['drive-wheels'].unique()
+
+most_valuable_drivewheel= new_df[['drive-wheels', 'body-style', 'price']]
+most_valuable_drivewheel.groupby(['drive-wheels'], as_index=False).mean()
+#print(most_valuable_drivewheel)
+
+most_valuable_drivewheel= most_valuable_drivewheel.groupby(['drive-wheels', 'body-style'], as_index=False).mean()
+print(most_valuable_drivewheel.tail())
+
+valuable_car_pivot= most_valuable_drivewheel.pivot(index= 'drive-wheels', columns= 'body-style')
+print(valuable_car_pivot)
+
+plt.pcolor(valuable_car_pivot, cmap= 'RdBu')
+plt.colorbar()
+plt.show()
+_________________________________________________________________________
+"""Model Development"""
+
+data=  'https://s3-api.us-geo.objectstorage.softlayer.net/cf-courses-data/CognitiveClass/DA0101EN/automobileEDA.csv'
+new_df2= pd.read_csv(data)
+
+from sklearn.linear_model import LinearRegression
+lm= LinearRegression()
+
+"if we want to see highway-mpg affect price"
+
+X= new_df2[['highway-mpg']]
+Y= new_df2['price']
+
+"fitting the linear model:"
+
+lm.fit(X, Y)
+print(lm.intercept_)
+print(lm.coef_)
+
+"Prediction of the model:
+"price = 38423.31 - 821.73 x highway-mpg"
+
+"Multiple Linear Regression"
+"predicting price based on 4 predictor variables"
+
+lm2= LinearRegression()
+Z= new_df2[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']]
+lm2.fit(Z, new_df2['price'])
+print(lm2.intercept_)
+print(lm2.coef_)
+"price = -15806.624626329198+ 53.49574423* horsepower+ 4.70770099 * curb-weight + 81.53026382 * engine size+ 36.05748882 * highway-mpg "
+
+" Model Evaluation using Visualization "
+"For simple linear regression we use: regression plot: that is scatter plot"
+
+#sns.regplot(x= new_df2['highway-mpg'], y= new_df2['price'])
+#plt.ylim(0,)
+
+"comparing another plot from peak rpm"
+
+sns.regplot(x= new_df2['peak-rpm'], y= new_df2['price'])
+plt.ylim(0,)
+
+width= 12
+height= 10
+plt.figure(figsize=(width, height))
+sns.residplot(x= new_df2['highway-mpg'], y= new_df2['price'])
+plt.show()
+plt.close()
+
+"the residuals are not randomly spread around the x-axis, means that maybe a non-linear model is more appropriate for this data."
+
+"Multiple linear Regression"
+
+Z= new_df2[['horsepower', 'curb-weight', 'engine-size', 'highway-mpg']]
+Yhat2= lm2.predict(Z)
+
+plt.figure(figsize= (width, height))
+ax1= sns.distplot(new_df2['price'], hist=False, color= 'r', label= 'Actual value')
+sns.distplot(Yhat2, hist=False, color= 'b', label= 'fitted value', ax= ax1)
+plt.show()
+plt.close()
+
+"polynomial regression"
+
+x= new_df2['highway-mpg']
+y= new_df2['price']
+
+"to fit the variables into polynomial function:"
+co_efficient = np.polyfit(x, y, 3)
+Model = np.poly1d(co_efficient) #this will create the polynomial function
+print(Model)
+
+"creating new x and y:"
+x_new= np.linspace(15, 55, 100)
+y_new= Model(x_new)
+
+"plotting polynomial"
+plt.plot(x, y, 'o', x_new, y_new)
+plt.show()
+"this polynomial model performs better than the linear model. hits more of the data points."
+
+from sklearn.preprocessing import PolynomialFeatures
+pr= PolynomialFeatures(degree= 2)
+
+z_pr= pr.fit_transform(Z)
+
+"PIPELINE"
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+
+input= [('scale', StandardScaler()), ('polynomial', PolynomialFeatures()), ('model', LinearRegression())]
+
+pipe1= Pipeline(input)
+
+pipe1.fit(Z, y)
+
+pipe1_predict= pipe1.predict(Z)
+
+"Model evaluation based on quantitave measure:"
+"R square and Mean Squared error"
+"Model 1: Linear Regression:"
+print('R square of model 1 is:', lm.score(X, Y))
+"We can say that ~ 49.659% of the variation of the price is explained by this simple linear model horsepower_fit"
+
+"MSE of Model 1: the differance between actual value and predicted value"
+"Formula= Model1_mse= mean_squared_error(new_df2['price'], Yhat)"
+Yhat= lm.predict(X)
+from sklearn.metrics import mean_squared_error
+
+Model1_mse= mean_squared_error(new_df2['price'], Yhat)
+print(Model1_mse)
+
+"Model 2: Multiple Linear Regression"
+lm2.fit(Z, new_df2['price'])
+r_square= lm2.score(Z, new_df2['price'])
+print('R square on MLR is:', r_square)
+Yhat2= lm2.predict(Z)
+Model2_mse= mean_squared_error(new_df2['price'], Yhat2)
+print('mean sq. error of MLR is:', Model2_mse)
+
+"Model 3: Polynomial"
+from sklearn.metrics import r2_score
+model3_r_sq= r2_score(y, Model(x)) #'Model' variable used earlier
+modl3_mean_sq_error= mean_squared_error(new_df2['price'], Model(x))
+print('Mean sq error of model 3 is:', modl3_mean_sq_error)
+
+"PREDICTION AN DECISION MAKING"
+"-------------------------------
+
+R-squared: 0.49659118843391759
+MSE: 3.16 x10^7
+Multiple Linear Regression: Using Horsepower, Curb-weight, Engine-size, and Highway-mpg as Predictor Variables of Price.
+
+R-squared: 0.80896354913783497
+MSE: 1.2 x10^7
+Polynomial Fit: Using Highway-mpg as a Predictor Variable of Price.
+
+R-squared: 0.6741946663906514
+MSE: 2.05 x 10^7
+Simple Linear Regression model (SLR) vs Multiple Linear Regression model (MLR)
+
+MSEThe MSE of SLR is 3.16x10^7 while MLR has an MSE of 1.2 x10^7. The MSE of MLR is much smaller.
+R-squared: there is a big difference between the R-squared of the SLR and the R-squared of the MLR. The R-squared for the SLR (~0.497) is very small compared to the R-squared for the MLR (~0.809).
+This R-squared in combination with the MSE show that MLR seems like the better model fit in this case, compared to SLR.
+
+Simple Linear Model (SLR) vs Polynomial Fit
+MSE: Polynomial Fit brought down the MSE, since this MSE is smaller than the one from the SLR.
+R-squared: The R-squared for the Polyfit is larger than the R-squared for the SLR, so the Polynomial Fit also brought up the R-squared quite a bit.
+Since the Polynomial Fit resulted in a lower MSE and a higher R-squared, this was a better fit model than the simple linear regression for predicting Price with Highway-mpg as a predictor variable.
+
+Multiple Linear Regression (MLR) vs Polynomial Fit
+MSE: The MSE for the MLR is smaller than the MSE for the Polynomial Fit.
+R-squared: The R-squared for the MLR is also much larger than for the Polynomial Fit.
+
+Conclusion:
+Comparing these three models, the MLR model is the best model to be able to predict price from this dataset.
