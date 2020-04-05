@@ -1,0 +1,132 @@
+Questions aiming to answer:
+1: what is the best month for sales?how much was earned during that month?
+2. Which city has the highest sales?
+3. What time should we display advertisements to maximize customers buying product?
+4. What products are most often sold together?
+5. What product sold the most?
+
+import numpy as np
+import pandas as pd
+
+df= pd.read_csv("Sales_January_2019.csv")
+df1= pd.read_csv("Sales_February_2019.csv")
+df2= pd.read_csv("Sales_March_2019.csv")
+df3= pd.read_csv("Sales_April_2019.csv")
+df4= pd.read_csv("Sales_May_2019.csv")
+df5= pd.read_csv("Sales_June_2019.csv")
+df6= pd.read_csv("Sales_July_2019.csv")
+df7= pd.read_csv("Sales_August_2019.csv")
+df8= pd.read_csv("Sales_September_2019.csv")
+df9= pd.read_csv("Sales_October_2019.csv")
+df10= pd.read_csv("Sales_November_2019.csv")
+df11= pd.read_csv("Sales_December_2019.csv")
+
+Frames = [df,df1,df2,df3,df4,df5,df6,df7,df8,df9,df10,df11]
+Sales= pd.concat(Frames)
+
+#checking NAN values
+Sales.isna().any(axis= 1)sum()
+Sales.dropna(how= 'all')
+
+#creating a month column
+Sales['Month']= Sales['Order Date'].str[0:2]
+
+#in month column there is string 'or', which we need to remove
+Sales= Sales[Sales['Month'].str[:] != 'Or']
+
+#now we can convert month into integer
+Sales['Month']= Sales['Month'].astype('int')
+#again converting int from str and float for other columns but with different method
+Sales['Quantity Ordered']= pd.to_numeric(Sales['Quantity Ordered'])
+Sales['Price Each']= pd.to_numeric(Sales['Price Each'])
+
+#we have to create a sales column
+Sales['Sales Made']= Sales['Quantity Ordered'] * Sales['Price Each']
+Sales['Sales Made']= pd.to_numeric(Sales['Sales Made'])
+
+#ANSWER 1: 
+Sales_by_Months= Sales.groupby('Month').sum()
+
+import matplotlib.pyplot as plt
+months= range(1,13)
+plt.bar(months, Sales_by_Months['Sales Made'])
+plt.show() 
+#December has the highest sales with more than 4million sales
+
+#Question 2
+#we need to make a new column 'city' to achieve this
+#we will use '.apply' method
+Sales['City']= Sales['Purchase Address'].apply(lambda x: x.split(',')[1])
+
+#we also need to get the state. because many city name are same so if we only use city that might give us duplicate result.
+#we can use a different method. using funciton
+def get_state(address):
+        return address.split(',')[2]
+    
+Sales['States']= Sales['Purchase Address'].apply(lambda x: get_state(x))
+Sales_by_city= Sales.groupby('City').sum()
+
+Cities= [city for city, df in Sales.groupby('City')]  
+plt.bar(Cities, Sales_by_city['Sales Made'])
+plt.xticks(Cities, rotation= 'vertical', size= 10)
+plt.xlabel('City')
+plt.ylabel('Sales in USD')
+plt.show()
+
+#Question 3
+Sales['Order Date']= pd.to_datetime(Sales['Order Date'])
+#now i would like to make new column(s) like hour or min so that i can plot hour or min against sales
+Sales['Order Hour']= Sales['Order Date'].dt.hour
+Sales['Order Min']= Sales['Order Date'].dt.minute
+
+#Visualising
+hours = [hour for hour, df in Sales.groupby('Order Hour')]
+plt.plot(hours, Sales.groupby(['Order Hour']).count()) #here sales.groupby(['order hour']).count() means counting no of times order received during each specific hour
+plt.xticks(hours)
+plt.xlabel('Hours')
+plt.ylabel('number of orders')
+plt.grid()
+plt.show()
+
+#Question 4
+Sales_df = Sales[Sales['Order ID'].duplicated(keep= False)]
+Sales_df['Grouped']= Sales_df.groupby('Order ID')['Product'].transform(lambda x: ','.join(x))
+Sales_df.head()
+Sales_df= Sales_df[['Order ID', 'Grouped']].drop_duplicates()
+Sales_df.head()
+
+from itertools import combinations
+from collections import Counter
+
+Count= Counter()
+for a in Sales_df['Grouped']:
+    a_list= a.split(',')
+    Count.update(Counter(combinations(a_list, 2))) #the combination function first works on (a_list,2): meaning that it combining all possible elements(2 element in this case) in mentioned list. Then the counter() functions storing "the combinations and no of combinations" as values in a form of dictionary
+Count.most_common(10)
+
+#Question 5
+product_group= Sales.groupby('Product')
+quantity_ordered= product_group.sum()['Quantity Ordered']
+
+products= [product for product, df in product_group]
+plt.bar(products, quantity_ordered)
+plt.ylabel('# of orders')
+plt.xticks(products, rotation = 'vertical', size= 8)
+plt.show()
+
+#now if we want to see the prices of products, we might be able to answer why AAA batteries are sold most
+
+Avg_prices_by_product= Sales.groupby('Product').mean()['Price Each']
+print(Avg_prices_by_product)
+
+#now we can plot the price into the previous bar chart to compare the price vs sold quantity
+
+fig, ax1 = plt.subplots()
+ax2= ax1.twinx()
+ax1.bar(products, quantity_ordered, color= 'g' )
+ax2.plot(products, Avg_prices_by_product)
+ax1.set_xticklabels(products, rotation= 'vertical', size= 8)
+plt.show()
+
+
+
