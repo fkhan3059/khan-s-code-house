@@ -1,0 +1,60 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+Sales_data= pd.read_csv(r"C:\Users\Fuad\Desktop\Exercises\retail_data\sales_data_set.csv")
+stores_data= pd.read_csv(r"C:\Users\Fuad\Desktop\Exercises\retail_data\stores_data_set.csv")
+Features_data= pd.read_csv(r"C:\Users\Fuad\Desktop\Exercises\retail_data\Features_data_set.csv")
+
+print(Sales_data)
+
+"""Cleaning missing data on Features/ unemployment column"""
+Features_data
+#Features_data.isna().sum()
+avg_unemplymnt = Features_data['Unemployment'].astype('float').mean(axis= 0)
+Features_data['Unemployment'].replace(np.nan, avg_unemplymnt, inplace= True)
+
+"Cleaing missing data on other columns"
+avg_mrk1= Features_data['MarkDown1'].astype('float').mean(axis= 0)
+avg_mrk2= Features_data['MarkDown2'].astype('float').mean(axis= 0)
+avg_mrk3= Features_data['MarkDown3'].astype('float').mean(axis= 0)
+avg_mrk4= Features_data['MarkDown4'].astype('float').mean(axis= 0)
+avg_mrk5= Features_data['MarkDown5'].astype('float').mean(axis= 0)
+avg_cpi= Features_data['CPI'].astype('float').mean()
+
+for a in Features_data.iloc[:]:
+    Features_data['MarkDown1'].replace(np.nan, avg_mrk1, inplace=True )
+    Features_data['MarkDown2'].replace(np.nan, avg_mrk2, inplace=True )
+    Features_data['MarkDown3'].replace(np.nan, avg_mrk3, inplace=True )
+    Features_data['MarkDown4'].replace(np.nan, avg_mrk4, inplace=True )
+    Features_data['MarkDown5'].replace(np.nan, avg_mrk5, inplace=True )
+    Features_data['CPI'].replace(np.nan, avg_cpi, inplace=True )
+    
+Sales_data.isna().sum() #no missing value
+
+"TASK 1: Predict the department-wide sales for each store for the following year"
+Sales_data['Month']= Sales_data['Date'].str[3:5]
+Sales_data['Year']= Sales_data['Date'].str[6:]
+Sales_data['Month']= pd.to_numeric(Sales_data['Month']) #converting data type
+Sales_data['Year']= Sales_data['Year'].astype('int') #converting data type
+
+Sales_data.head()
+
+#now we are trying to build a dataframe or dictionary which can be used for loop. with loop we can entry all month sales data into a new dataframe. with new dataframe we can answer the question
+
+new_Sales_data = {'storeid', 'month', 'year', 'Monthly_Sales'}
+yearsList= []
+monthsList= []
+storeidList= []
+salesList= []
+for yrs in list(Sales_data['Year'].unique()):
+    for mnths in list(Sales_data['Month'].unique()):
+        for store_id in list(Sales_data['Store'].unique()):
+            monthly_sales= Sales_data['Weekly_Sales'][(Sales_data['Store']== store_id) & (Sales_data['Month'] == mnths) & (Sales_data['Year'] == yrs)].sum()
+            salesList.append(monthly_sales)
+            storeidList.append(store_id)
+            monthsList.append(mnths)
+            yearsList.append(yrs)
+new_Sales_data= {'storeid': storeidList, 'month': monthsList, 'year': yearsList, 'Monthly_Sales': salesList}
+Sales_data2= pd.DataFrame(new_Sales_data)
+print(Sales_data2)
