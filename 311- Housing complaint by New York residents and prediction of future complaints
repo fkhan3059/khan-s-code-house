@@ -1,0 +1,62 @@
+import requests
+import pandas as pd
+import numpy as np
+import json
+import os
+import matplotlib.pyplot as plt
+
+os.getcwd()
+data= pd.read_csv('311_Service_Requests_from_2010_to_Present_min.csv')
+data2= pd.read_csv('BK_18v1.csv')
+data3= pd.read_csv('BX_18v1.csv')
+data4= pd.read_csv('MN_18v1.csv')
+data5= pd.read_csv('QN_18v1.csv')
+data6= pd.read_csv('SI_18v1.csv')
+
+#Dropping unnecessary column
+data= data.drop(['Unnamed: 0'], axis= 1)
+
+#top_complaints= data.groupby('Complaint Type').count()['Complaint Type']
+complaints= data['Complaint Type'].value_counts()
+top_complaints= pd.DataFrame(complaints).rename(columns= {'Complaint Type': 'Number of Complaints'})
+top_complaints.head(5)
+
+#It is apparent that department of housing is getting most complaints regarding the heat and or hot water problems or issues.
+
+Complaint_of_heat_hot_water= data.loc[(data['Complaint Type']== 'HEAT/HOT WATER')]
+Complaint_of_heat_hot_water.drop(['Location Type', 'Address Type'], axis= 1, inplace=True)
+Complaint_of_heat_hot_water
+
+Complaint_by_boroughs= pd.DataFrame(Complaint_of_heat_hot_water['Borough'].value_counts())
+Complaint_by_boroughs= Complaint_by_boroughs.rename(columns= {'Borough': 'Number of complaint per boroughs'})
+Complaint_by_boroughs
+
+Complaint_by_zip= pd.DataFrame(Complaint_of_heat_hot_water['Incident Zip'].value_counts())
+Complaint_by_zip= Complaint_by_zip.rename(columns= {'Incident Zip': 'Number of complaint per zips'})
+Complaint_by_zip
+
+Complaint_by_street= pd.DataFrame(Complaint_of_heat_hot_water['Street Name'].value_counts())
+Complaint_by_street= Complaint_by_street.rename(columns= {'Street Name': 'Number of complaints per street'})
+Complaint_by_street
+
+#Visualisation
+Complaint_by_boroughs.plot(kind= 'bar', figsize= (8,5))
+plt.xlabel('Boroughs')
+plt.ylabel('number of complaints')
+
+#since bronx has the most number of complaints regarding heat/ hot water i would only work on this particular borough
+
+top_complaint_address_in_bronx= Complaint_of_heat_hot_water.loc[(Complaint_of_heat_hot_water['Borough'] == 'BRONX') & (Complaint_of_heat_hot_water['Status']== 'Open')]
+top_complaint_address_in_bronx.drop(['Resolution Description', 'City', 'Latitude', 'Longitude'], axis= 1, inplace= True)
+top_complaint_address_in_bronx
+
+#To identify that the frequency of complaints against each of the above records, I can see how many times each of the incident address had complained to the department of Housing
+
+frequency_of_complaint_per_address= top_complaint_address_in_bronx['Incident Address'].value_counts()
+frequency_of_complaint_per_address
+
+#Visualising
+A= frequency_of_complaint_per_address.head(5)
+A.plot(kind='bar', figsize= (8,5))
+plt.show()
+plt.show()
